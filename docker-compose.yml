@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # Service Backend
+  backend:
+    build:
+      context: ./backend                    # Répertoire contenant le Dockerfile du backend
+      dockerfile: dockerfile                 # Dockerfile pour le backend
+    image: my-backend:latest                 # Image construite avec le tag latest
+    ports:
+      - "5000:5000"                          # Exposer le backend sur le port 5000
+    environment:
+      - NODE_ENV=production                 # Variable d'environnement pour le mode de production
+    volumes:
+      - ./backend:/app                       # Synchroniser le code source avec le conteneur
+      - ./backend/config:/app/config   
+      - ./config/backend_config.json:/app/config/backend_config.json
+
+    # Synchroniser les fichiers de configuration
+    configs:
+      - source: backend-config               # Utilisation d'un fichier de configuration
+    secrets:
+      - db_password                          # Utilisation du secret pour le mot de passe DB
+    depends_on:
+      - db                                    # Dépendance sur le service db (base de données)
+    networks:
+      - backend_network
+    deploy:
+      replicas: 1                           
+      restart_policy:
+        condition: on-failure                # Relancer en cas d'échec
+
+  # Service Frontend
+  frontend:
+    build:
+      context: ./frontend/frontend           # Répertoire contenant le Dockerfile du frontend
+      dockerfile: dockerfile                 # Dockerfile pour le frontend
+    image: my-frontend:latest                # Image construite avec le tag latest
+    ports:
+      - "3000:80"                            # Exposer le frontend sur le port 3000
+    volumes:
+      - ./frontend/frontend:/usr/share/nginx/html     # Synchronisation des fichiers frontend avec Nginx
+    depends_on:
+      - backend                              # Dépendance sur le service backend
+    networks:
+      - frontend_network
+    deploy:
+      replicas: 1                            
+      restart_policy:
+        condition: on-failure                # Relancer en cas d'échec
+
+  # Service Base de données (PostgreSQL)
+  db:
+    image: postgres:13                       # Utilisation de l'image officielle PostgreSQL
+    environment:
+      - POSTGRES_USER=admin                  # Utilisateur DB
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password  # Mot de passe via un secret
+      - POSTGRES_DB=mydatabase               # Base de données par défaut
+    volumes:
+      - db_data:/var/lib/postgresql/data     # Volume persistant pour la base de données
+    networks:
+      - backend_network
+      - frontend_network
+    secrets:
+      - db_password                          # Utilisation du secret pour le mot de passe DB
+    deploy:
+      replicas: 1                            # Une seule instance de base de données
+      restart_policy:
+        condition: on-failure                # Relancer en cas d'échec
+
+networks:
+  backend_network:
+    driver: overlay
+  frontend_network:
+    driver: overlay
+
+volumes:
+  db_data:                                   # Volume pour persister les données de la base
+
+configs:
+  backend-config:
+    file: ./config/backend_config.json       # Fichier de configuration du backend
+
+secrets:
+  db_password:
+    external: true                            # Utilisation d'un secret externe pour la base de données
