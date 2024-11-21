@@ -39,7 +39,7 @@ services:
     ports:
       - "3000:80"                            # Exposer le frontend sur le port 3000
     volumes:
-      - ./frontend/frontend:/usr/share/nginx/html     # Synchronisation des fichiers frontend avec Nginx
+      - ./frontend/frontend:/usr/share/nginx/html/build     # Synchronisation des fichiers frontend avec Nginx
     depends_on:
       - backend                              # Dépendance sur le service backend
     networks:
